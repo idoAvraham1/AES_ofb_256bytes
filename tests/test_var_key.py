@@ -1,6 +1,6 @@
 from aes_core.ofb import aes_ofb_encrypt
 
-print("🔑 Starting Variable Key Tests...")
+print("🔑 Starting Variable Key Tests...\n")
 
 # Static test vector (plaintext and IV are the same in all tests)
 plaintext = bytes.fromhex("00000000000000000000000000000000")
