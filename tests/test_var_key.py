@@ -1,4 +1,6 @@
-from aes import aes_ofb_encrypt
+from aes_core.ofb import aes_ofb_encrypt
+
+print("🔑 Starting Variable Key Tests...")
 
 # Static test vector (plaintext and IV are the same in all tests)
 plaintext = bytes.fromhex("00000000000000000000000000000000")
@@ -18,5 +20,6 @@ for i, (key_hex, expected_cipher_hex) in enumerate(test_vectors, start=1):
     expected = bytes.fromhex(expected_cipher_hex)
     result = aes_ofb_encrypt(key, iv, plaintext)
     assert result[:16] == expected, f"❌ Test {i} failed: got {result.hex()}, expected {expected.hex()}"
-    print(f"✅ Test {i} passed.")
+    print(f"✅ Test {i} passed. key={key_hex}")
 
+print("🔑 Finished Variable Key Tests\n")
