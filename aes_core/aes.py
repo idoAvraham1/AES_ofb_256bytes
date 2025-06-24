@@ -20,19 +20,28 @@ def rot_word(word):
 
 def key_expansion(key):
     """
-    Generate the key schedule (expanded key) from a 256-bit key.
-    Returns a list of 4-byte words for each round key.
-    AES-256: Nk=8, Nb=4, Nr=14
+    Expand the original 256-bit key into a key schedule for all AES rounds.
+
+    - AES-256: Nk=8 (8 32-bit words), Nb=4 (4 columns per state), Nr=14 (14 rounds)
+    - Output: 60 words (each 4 bytes) → enough for 15 round keys (14 + initial)
+
+    Key schedule generation rules:
+    - For every word w[i]:
+        - If i % Nk == 0: apply rot_word + sub_word + rcon
+        - If i % Nk == 4: apply sub_word only
+        - Otherwise: XOR previous word with word Nk places before
     """
-    Nk, Nb, Nr = 8, 4, 14
+    Nk, Nb, Nr = 8, 4, 14 # 256-bit key, 4 columns per state, 14 rounds
     w = [0] * (Nb * (Nr + 1))  # total 60 words
     for i in range(Nk):
         w[i] = struct.unpack(">I", key[4*i: 4*(i+1)])[0]  # Read key as big-endian 32-bit words
     for i in range(Nk, Nb * (Nr + 1)):
         temp = w[i - 1]
         if i % Nk == 0:
+            # Apply core key expansion operation (with rotation and substitution)
             temp = sub_word(rot_word(temp)) ^ rcon[(i // Nk) - 1]
         elif i % Nk == 4:
+            # Apply sub_word every 4 steps (special case)
             temp = sub_word(temp)
         w[i] = w[i - Nk] ^ temp
     return w
@@ -69,7 +78,9 @@ def mix_single_column(a):
     Mix one column using the MixColumns transformation.
     a is a list of 4 bytes (one column).
     """
+    # t = XOR of all 4 bytes (used in multiple places)
     t = a[0] ^ a[1] ^ a[2] ^ a[3]
+    # u = copy of first byte (used in transformation)
     u = a[0]
     a[0] ^= t ^ xtime(a[0] ^ a[1])
     a[1] ^= t ^ xtime(a[1] ^ a[2])
@@ -92,6 +103,8 @@ def add_round_key(state, w, rnd):
     `w` is the expanded key (list of 4-byte words).
     """
     for c in range(4):
+        # Extract the word for the current column in this round
+        # Apply byte-wise XOR between the word and the column
         word = w[rnd * 4 + c]
         for r in range(4):
             state[r][c] ^= (word >> (24 - r * 8)) & 0xFF
@@ -111,10 +124,10 @@ def aes_encrypt_block(block, w):
 
     # 13 full rounds
     for round in range(1, 14):
-        sub_bytes(state)
-        shift_rows(state)
-        mix_columns(state)
-        add_round_key(state, w, round)
+        sub_bytes(state)   # Non-linear substitution
+        shift_rows(state)  # Row-wise permutation
+        mix_columns(state) # Column diffusion (except in last round)
+        add_round_key(state, w, round)  # XOR with round key
 
     # Final round (no MixColumns)
     sub_bytes(state)
