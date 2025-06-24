@@ -69,46 +69,74 @@ def shift_rows(state):
 
 def xtime(a):
     """
-    Multiply by 2 in GF(2^8). If MSB is 1, reduce using the AES polynomial.
+    Multiply by 2 in GF(2^8):
+    - If the MSB of 'a' is 0, use (a << 1)
+    - If the MSB is 1, reduce with (a << 1) ^ 0x1B (mod 0x11B)
+    - & 0xFF keeps the result within 8 bits
     """
     return (((a << 1) ^ 0x1B) & 0xFF) if (a & 0x80) else (a << 1)
 
 def mix_single_column(a):
     """
-    Mix one column using the MixColumns transformation.
-    a is a list of 4 bytes (one column).
+    Perform MixColumns on a single column of the AES state.
+
+    This computes the matrix multiplication:
+        [2 3 1 1]
+        [1 2 3 1] * a  (in GF(2^8))
+        [1 1 2 3]
+        [3 1 1 2]
+
+    Optimized using:
+    - 3·x = 2·x ⊕ x = xtime(x) ^ x
+    - Shared term t = a0 ^ a1 ^ a2 ^ a3  
+
+    Example: row 0 computes 2·a0 ⊕ 3·a1 ⊕ a2 ⊕ a3
+      = 2·a0 ⊕ (2·a1 ⊕ a1) ⊕ a2 ⊕ a3
+      = a0 ⊕ a1 ⊕ a2 ⊕ a3 ⊕ 2·(a0 ⊕ a1)
+      = t ⊕ xtime(a0 ⊕ a1)
     """
-    # t = XOR of all 4 bytes (used in multiple places)
     t = a[0] ^ a[1] ^ a[2] ^ a[3]
-    # u = copy of first byte (used in transformation)
     u = a[0]
     a[0] ^= t ^ xtime(a[0] ^ a[1])
     a[1] ^= t ^ xtime(a[1] ^ a[2])
     a[2] ^= t ^ xtime(a[2] ^ a[3])
     a[3] ^= t ^ xtime(a[3] ^ u)
 
+    
 def mix_columns(state):
     """
     Apply MixColumns to each column of the state.
     """
     for c in range(4):
+        # Extract the c-th column (as a list of 4 bytes)
         col = [state[r][c] for r in range(4)]
+        
         mix_single_column(col)
+        
+        # Write back the transformed column into the state
         for r in range(4):
             state[r][c] = col[r]
 
 def add_round_key(state, w, rnd):
     """
     XOR the state with the round key for round `rnd`.
-    `w` is the expanded key (list of 4-byte words).
+    Each round key consists of 4 words (16 bytes), applied column-wise to the state.
     """
     for c in range(4):
-        # Extract the word for the current column in this round
-        # Apply byte-wise XOR between the word and the column
-        word = w[rnd * 4 + c]
+        word = w[rnd * 4 + c]  # c-th word of the rnd-th round key 
+        # Break the 32-bit word into 4 bytes
+        bytes_ = [
+            (word >> 24) & 0xFF,  # top byte
+            (word >> 16) & 0xFF,
+            (word >> 8)  & 0xFF,
+            word & 0xFF           # bottom byte
+        ]
+        # XOR each byte into the corresponding row of this column
         for r in range(4):
-            state[r][c] ^= (word >> (24 - r * 8)) & 0xFF
+            state[r][c] ^= bytes_[r]
 
+
+    
 def aes_encrypt_block(block, w):
     """
     Encrypt a single 16-byte block using AES-256 and the expanded key `w`.
@@ -124,10 +152,10 @@ def aes_encrypt_block(block, w):
 
     # 13 full rounds
     for round in range(1, 14):
-        sub_bytes(state)   # Non-linear substitution
-        shift_rows(state)  # Row-wise permutation
-        mix_columns(state) # Column diffusion (except in last round)
-        add_round_key(state, w, round)  # XOR with round key
+        sub_bytes(state)   
+        shift_rows(state)  
+        mix_columns(state) 
+        add_round_key(state, w, round)  
 
     # Final round (no MixColumns)
     sub_bytes(state)
