@@ -5,19 +5,28 @@ from .constants import s_box, rcon
 ############ AES UTILS ############
 def sub_word(word):
     """
-    Apply S-box substitution on a 4-byte word.
-    Each byte of the input word is substituted using the AES S-box.
+    Substitute each byte of a 32-bit word using the AES S-box.
+
+    - Input: A 32-bit word (e.g., 0x12345678)
+    - Operation: Apply S-box substitution to each of the 4 bytes
+    - Output: A new 32-bit word with substituted bytes
+
+    Used in AES key expansion.
     """
-    return ((s_box[(word >> 24) & 0xFF] << 24) |
-            (s_box[(word >> 16) & 0xFF] << 16) |
-            (s_box[(word >> 8) & 0xFF] << 8) |
-            s_box[word & 0xFF])
+    b0 = s_box[(word >> 24) & 0xFF]
+    b1 = s_box[(word >> 16) & 0xFF]
+    b2 = s_box[(word >> 8) & 0xFF]
+    b3 = s_box[word & 0xFF]
+    return (b0 << 24) | (b1 << 16) | (b2 << 8) | b3
 
 
 def rot_word(word):
     """
     Rotate 4-byte word left by 8 bits (1 byte).
-    For example, [B8, BA, C7, 49] -> [BA, C7, 49, B8].
+    For example: 
+                 word << 8  & 0xFFFFFFFF  ->  [00, BA , C7, 49]
+                 word >> 24               ->  [00, 00 , 00 ,B8]
+                 [00, BA , C7, 49] | [00, 00 , 00 ,B8] = [BA, C7, 49, B8].
     """
     return ((word << 8) & 0xFFFFFFFF) | (word >> 24)
 

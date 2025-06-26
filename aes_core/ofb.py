@@ -2,6 +2,7 @@ from .aes import key_expansion, aes_encrypt_block
 
 def aes_ofb_encrypt(key, iv, plaintext):
     """
+
     Encrypts plaintext using AES-256 in OFB mode.
 
     Parameters:
@@ -12,6 +13,8 @@ def aes_ofb_encrypt(key, iv, plaintext):
     Returns:
     - bytes: Ciphertext output (same length as plaintext).
     """
+  
+  
     assert len(key) == 32, "AES-256 key must be 32 bytes"
     assert len(iv) == 16, "AES block size (IV) must be 16 bytes"
 

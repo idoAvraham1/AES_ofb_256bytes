@@ -3,6 +3,10 @@ from aes_core.ofb import aes_ofb_encrypt
 
 def parse_hex(input_str, name):
     try:
+        
+        if name == "plaintext" and len(input_str) % 2 != 0: # Allow odd length by padding with one 0
+                input_str+="0"
+
         return bytes.fromhex(input_str)
     except ValueError:
         raise argparse.ArgumentTypeError(f"Invalid hex string for {name}: {input_str}")
@@ -30,7 +34,7 @@ if __name__ == '__main__':
     
     
     
-#usage:    
+# Usage:    
 # python main.py -k 0000000000000000000000000000000000000000000000000000000000000000 -i 80000000000000000000000000000000 -p  00000000000000000000000000000000
 # 🔒 Encrypted: ddc6bf790c15760d8d9aeb6f9a75fd4e
 
